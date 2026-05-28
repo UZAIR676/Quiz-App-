@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
   email:    { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
   role:     { type: String, enum: ['user', 'admin'], default: 'user' },
+  quizTerminated: { type: Boolean, default: false },
   scores: [
     {
       score:     { type: Number },
@@ -12,7 +13,9 @@ const userSchema = new mongoose.Schema({
       playedAt:  { type: Date, default: Date.now }
     }
   ],
+
   createdAt: { type: Date, default: Date.now }
+
 });
 
 export default mongoose.model('User', userSchema);

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 import {
   FiUsers, FiBook, FiPlus, FiEdit2, FiTrash2,
   FiX, FiCheck, FiShield, FiTrendingUp, FiAward,
-  FiChevronDown, FiChevronUp, FiClock, FiBarChart2
+  FiChevronDown, FiChevronUp, FiClock, FiBarChart2,
+  FiRefreshCw
 } from 'react-icons/fi';
 
-// ─── Quiz Modal (Edit only) ───────────────────────────────────────────────────
+// ─── Quiz Modal ───────────────────────────────────────────────────────────────
 function QuizModal({ quiz, onClose, onSave }) {
   const blank = { question: '', option1: '', option2: '', option3: '', option4: '', ans: 1 };
   const [form, setForm] = useState(quiz || blank);
@@ -35,16 +37,12 @@ function QuizModal({ quiz, onClose, onSave }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="admin-modal w-full max-w-2xl p-8 fade-in" style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-black text-amber-300" style={{ fontFamily: 'Orbitron' }}>
-            ✏️ EDIT QUESTION
-          </h3>
+          <h3 className="text-lg font-black text-amber-300" style={{ fontFamily: 'Orbitron' }}>✏️ EDIT QUESTION</h3>
           <button onClick={onClose} className="text-amber-500/40 hover:text-amber-300 transition-colors">
             <FiX size={20} />
           </button>
         </div>
-
         {error && <div className="alert alert-error mb-4">{error}</div>}
-
         <div className="space-y-4">
           <div>
             <label className="block text-sm text-amber-300/60 mb-2">Question</label>
@@ -62,19 +60,15 @@ function QuizModal({ quiz, onClose, onSave }) {
                   {String.fromCharCode(64 + n)}
                 </span>
                 <input type="text" className="admin-input flex-1" placeholder={`Option ${n}`} {...f(`option${n}`)} />
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, ans: n })}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${form.ans === n ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'text-white/30 hover:text-amber-400'}`}
-                >
+                <button type="button" onClick={() => setForm({ ...form, ans: n })}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${form.ans === n ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'text-white/30 hover:text-amber-400'}`}>
                   <FiCheck size={14} />
                 </button>
               </div>
             ))}
           </div>
-          <p className="text-xs text-amber-500/40">✓ Click to mark correct answer (currently: Option {String.fromCharCode(64 + form.ans)})</p>
+          <p className="text-xs text-amber-500/40">✓ Correct answer: Option {String.fromCharCode(64 + form.ans)}</p>
         </div>
-
         <div className="flex gap-3 mt-8">
           <button onClick={onClose} className="admin-btn-ghost flex-1 text-sm">Cancel</button>
           <button onClick={handleSave} disabled={loading} className="admin-btn-primary flex-1 text-sm">
@@ -86,9 +80,10 @@ function QuizModal({ quiz, onClose, onSave }) {
   );
 }
 
-// ─── User Results Expandable Row ──────────────────────────────────────────────
-function UserRow({ user, index, onDelete }) {
+// ─── User Row ─────────────────────────────────────────────────────────────────
+function UserRow({ user, index, onDelete, onReset }) {
   const [expanded, setExpanded] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const getBestScore = (scores) => {
     if (!scores?.length) return null;
@@ -110,17 +105,37 @@ function UserRow({ user, index, onDelete }) {
     return '#ef4444';
   };
 
+  const handleReset = async (e) => {
+    e.stopPropagation();
+    setResetting(true);
+    await onReset(user._id);
+    setResetting(false);
+  };
+
   return (
     <>
       <tr className="admin-table-row" onClick={() => user.scores?.length && setExpanded(!expanded)}
         style={{ cursor: user.scores?.length ? 'pointer' : 'default' }}>
         <td className="text-amber-500/40 font-mono text-sm px-4 py-3">{index + 1}</td>
-        <td className="px-4 py-3"><span className="font-bold text-amber-100">{user.username}</span></td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-amber-100">{user.username}</span>
+            {/* ✅ Show terminated badge */}
+            {user.quizTerminated && (
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+                Terminated
+              </span>
+            )}
+          </div>
+        </td>
         <td className="px-4 py-3 text-amber-300/50 text-sm">{user.email}</td>
         <td className="px-4 py-3">
           <span className={`badge ${user.role === 'admin' ? 'badge-admin' : 'badge-user'}`}>{user.role}</span>
         </td>
-        <td className="px-4 py-3 text-center"><span className="font-bold text-amber-200">{user.scores?.length || 0}</span></td>
+        <td className="px-4 py-3 text-center">
+          <span className="font-bold text-amber-200">{user.scores?.length || 0}</span>
+        </td>
         <td className="px-4 py-3 text-center">
           {best !== null ? <span className="font-black text-lg" style={{ color: scoreColor(best) }}>{best}%</span> : <span className="text-amber-500/30">—</span>}
         </td>
@@ -135,7 +150,20 @@ function UserRow({ user, index, onDelete }) {
                 {expanded ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
               </button>
             )}
-            <button onClick={(e) => { e.stopPropagation(); onDelete(user); }} className="admin-btn-danger text-xs py-1 px-2">
+            {/* ✅ Reset button — only show if terminated */}
+            {user.quizTerminated && (
+              <button
+                onClick={handleReset}
+                disabled={resetting}
+                className="text-xs py-1 px-2 flex items-center gap-1 rounded-lg transition-all"
+                style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}
+              >
+                <FiRefreshCw size={11} className={resetting ? 'animate-spin' : ''} />
+                {resetting ? '...' : 'Reset'}
+              </button>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); onDelete(user); }}
+              className="admin-btn-danger text-xs py-1 px-2">
               Remove
             </button>
           </div>
@@ -178,6 +206,7 @@ function UserRow({ user, index, onDelete }) {
 
 // ─── Main Admin Panel ─────────────────────────────────────────────────────────
 export default function AdminPanel() {
+  const { token, loading: authLoading } = useAuth();
   const [tab, setTab] = useState('users');
   const [users, setUsers] = useState([]);
   const [quizzes, setQuizzes] = useState([]);
@@ -193,27 +222,66 @@ export default function AdminPanel() {
   const [addError, setAddError] = useState('');
   const [addMsg, setAddMsg] = useState('');
 
-  useEffect(() => { fetchUsers(); fetchQuizzes(); }, []);
+  useEffect(() => {
+    if (authLoading) return;
+    if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    fetchUsers();
+    fetchQuizzes();
+  }, [authLoading, token]);
 
   const fetchUsers = async () => {
-    try { setLoadingUsers(true); const res = await axios.get('/api/scores/all'); setUsers(res.data); }
-    catch { } finally { setLoadingUsers(false); }
+    try {
+      setLoadingUsers(true);
+      const res = await axios.get('/api/scores/all');
+      setUsers(res.data);
+    } catch (err) {
+      console.error('Failed to fetch users:', err.response?.data?.message);
+    } finally {
+      setLoadingUsers(false);
+    }
   };
 
   const fetchQuizzes = async () => {
-    try { setLoadingQuiz(true); const res = await axios.get('/api/quiz'); setQuizzes(res.data); }
-    catch { } finally { setLoadingQuiz(false); }
+    try {
+      setLoadingQuiz(true);
+      const res = await axios.get('/api/quiz');
+      setQuizzes(res.data);
+    } catch {
+    } finally {
+      setLoadingQuiz(false);
+    }
   };
 
   const deleteUser = async (id) => {
-    try { await axios.delete(`/api/scores/user/${id}`); setUsers(u => u.filter(x => x._id !== id)); showMsg('User removed'); }
-    catch { showMsg('Failed to delete'); }
+    try {
+      await axios.delete(`/api/scores/user/${id}`);
+      setUsers(u => u.filter(x => x._id !== id));
+      showMsg('User removed successfully');
+    } catch {
+      showMsg('Failed to delete user');
+    }
     setDeleteConfirm(null);
   };
 
+  // ✅ Reset user quiz
+  const resetUserQuiz = async (id) => {
+    try {
+      await axios.post(`/api/scores/reset/${id}`);
+      setUsers(u => u.map(x => x._id === id ? { ...x, quizTerminated: false } : x));
+      showMsg('Quiz reset successfully — user can retake now');
+    } catch {
+      showMsg('Failed to reset quiz');
+    }
+  };
+
   const deleteQuiz = async (id) => {
-    try { await axios.delete(`/api/quiz/${id}`); setQuizzes(q => q.filter(x => x._id !== id)); showMsg('Question deleted'); }
-    catch { showMsg('Failed to delete'); }
+    try {
+      await axios.delete(`/api/quiz/${id}`);
+      setQuizzes(q => q.filter(x => x._id !== id));
+      showMsg('Question deleted successfully');
+    } catch {
+      showMsg('Failed to delete question');
+    }
     setDeleteConfirm(null);
   };
 
@@ -222,13 +290,13 @@ export default function AdminPanel() {
   const handleAddQuestion = async () => {
     setAddError('');
     for (const k of ['question', 'option1', 'option2', 'option3', 'option4']) {
-      if (!addForm[k].trim()) return setAddError('Saare fields required hain');
+      if (!addForm[k].trim()) return setAddError('All fields are required');
     }
     setAddLoading(true);
     try {
       await axios.post('/api/quiz', addForm);
       setAddForm(blankForm);
-      setAddMsg('Question successfully add ho gaya! ✅');
+      setAddMsg('Question added successfully! ✅');
       fetchQuizzes();
       setTimeout(() => setAddMsg(''), 3000);
     } catch (err) {
@@ -251,6 +319,15 @@ export default function AdminPanel() {
     const best = Math.max(...u.scores.map(s => Math.round((s.score / s.total) * 100)));
     return best > (top?.best || 0) ? { name: u.username, best } : top;
   }, null);
+
+  if (authLoading) return (
+    <div className="admin-bg min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-amber-500/60 text-sm">Loading dashboard...</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="admin-bg min-h-screen">
@@ -309,30 +386,27 @@ export default function AdminPanel() {
             { id: 'quiz', label: 'Quiz Questions', icon: <FiBook size={14} /> },
             { id: 'add', label: 'Add Question', icon: <FiPlus size={14} /> },
           ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${tab === t.id ? 'admin-tab-active' : 'admin-tab'}`}
-            >
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${tab === t.id ? 'admin-tab-active' : 'admin-tab'}`}>
               {t.icon} {t.label}
             </button>
           ))}
         </div>
 
-        {/* Users Tab */}
+        {/* ─── Users Tab ─── */}
         {tab === 'users' && (
           <div className="admin-card overflow-hidden">
             <div className="p-5 border-b border-amber-500/10 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-amber-300 text-sm tracking-wide">ALL USERS & RESULTS</h3>
-                <p className="text-amber-500/40 text-xs mt-0.5">Row click karo attempts dekhne ke liye</p>
+                <p className="text-amber-500/40 text-xs mt-0.5">Click on a row to expand attempts</p>
               </div>
               <span className="text-amber-500/40 text-sm">{users.length} users</span>
             </div>
             {loadingUsers ? (
               <div className="p-10 text-center text-amber-500/40">Loading users...</div>
             ) : users.length === 0 ? (
-              <div className="p-10 text-center text-amber-500/40">Koi user registered nahi hai abhi.</div>
+              <div className="p-10 text-center text-amber-500/40">No users registered yet.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
@@ -348,6 +422,7 @@ export default function AdminPanel() {
                     {users.map((u, i) => (
                       <UserRow key={u._id} user={u} index={i}
                         onDelete={(u) => setDeleteConfirm({ msg: `Remove user "${u.username}"?`, action: () => deleteUser(u._id) })}
+                        onReset={resetUserQuiz}
                       />
                     ))}
                   </tbody>
@@ -357,7 +432,7 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Quiz Questions Tab */}
+        {/* ─── Quiz Questions Tab ─── */}
         {tab === 'quiz' && (
           <div className="admin-card overflow-hidden">
             <div className="p-5 border-b border-amber-500/10 flex items-center justify-between">
@@ -368,7 +443,7 @@ export default function AdminPanel() {
               <div className="p-10 text-center text-amber-500/40">Loading...</div>
             ) : quizzes.length === 0 ? (
               <div className="p-10 text-center">
-                <p className="text-amber-500/40 mb-4">Koi question nahi hai abhi.</p>
+                <p className="text-amber-500/40 mb-4">No questions added yet.</p>
                 <button onClick={() => setTab('add')} className="admin-btn-primary text-sm">Add First Question</button>
               </div>
             ) : (
@@ -407,10 +482,8 @@ export default function AdminPanel() {
                             <button onClick={() => setModal(q)} className="admin-btn-edit text-xs py-1.5 px-3 flex items-center gap-1">
                               <FiEdit2 size={11} /> Edit
                             </button>
-                            <button
-                              onClick={() => setDeleteConfirm({ msg: 'Delete this question?', action: () => deleteQuiz(q._id) })}
-                              className="admin-btn-danger text-xs py-1.5 px-3 flex items-center gap-1"
-                            >
+                            <button onClick={() => setDeleteConfirm({ msg: 'Delete this question?', action: () => deleteQuiz(q._id) })}
+                              className="admin-btn-danger text-xs py-1.5 px-3 flex items-center gap-1">
                               <FiTrash2 size={11} /> Delete
                             </button>
                           </div>
@@ -424,7 +497,7 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Add Question Tab */}
+        {/* ─── Add Question Tab ─── */}
         {tab === 'add' && (
           <div className="admin-card p-8 max-w-2xl mx-auto">
             <div className="flex items-center gap-3 mb-6">
@@ -433,28 +506,20 @@ export default function AdminPanel() {
               </div>
               <div>
                 <h3 className="font-black text-amber-300 text-lg" style={{ fontFamily: 'Orbitron' }}>ADD NEW QUESTION</h3>
-                <p className="text-amber-500/40 text-xs">Question likho, options dalo, correct mark karo</p>
+                <p className="text-amber-500/40 text-xs">Write the question, add options, mark the correct answer</p>
               </div>
             </div>
-
             {addMsg && <div className="alert alert-success mb-5">{addMsg}</div>}
             {addError && <div className="alert alert-error mb-5">{addError}</div>}
-
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-semibold text-amber-300/70 mb-2">Question *</label>
-                <textarea
-                  className="admin-input resize-none"
-                  rows={4}
-                  placeholder="Yahan apna question likho..."
-                  value={addForm.question}
-                  onChange={e => setAddForm({ ...addForm, question: e.target.value })}
-                />
+                <textarea className="admin-input resize-none" rows={4} placeholder="Enter your question here..."
+                  value={addForm.question} onChange={e => setAddForm({ ...addForm, question: e.target.value })} />
               </div>
-
               <div>
                 <label className="block text-sm font-semibold text-amber-300/70 mb-3">
-                  Options — <span className="text-amber-500/50 font-normal">✓ click karke correct answer mark karo</span>
+                  Options — <span className="text-amber-500/50 font-normal">click ✓ to mark correct answer</span>
                 </label>
                 <div className="space-y-3">
                   {[1, 2, 3, 4].map(n => (
@@ -467,21 +532,10 @@ export default function AdminPanel() {
                         }}>
                         {String.fromCharCode(64 + n)}
                       </span>
-                      <input
-                        type="text"
-                        className="admin-input flex-1"
-                        placeholder={`Option ${String.fromCharCode(64 + n)} likho...`}
-                        value={addForm[`option${n}`]}
-                        onChange={e => setAddForm({ ...addForm, [`option${n}`]: e.target.value })}
-                      />
-                      <button
-                        onClick={() => setAddForm({ ...addForm, ans: n })}
-                        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all border ${
-                          addForm.ans === n
-                            ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
-                            : 'text-white/20 border-white/10 hover:text-amber-400 hover:border-amber-500/30'
-                        }`}
-                      >
+                      <input type="text" className="admin-input flex-1" placeholder={`Option ${String.fromCharCode(64 + n)}...`}
+                        value={addForm[`option${n}`]} onChange={e => setAddForm({ ...addForm, [`option${n}`]: e.target.value })} />
+                      <button onClick={() => setAddForm({ ...addForm, ans: n })}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all border ${addForm.ans === n ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 'text-white/20 border-white/10 hover:text-amber-400 hover:border-amber-500/30'}`}>
                         <FiCheck size={15} />
                       </button>
                     </div>
@@ -492,11 +546,10 @@ export default function AdminPanel() {
                 </p>
               </div>
             </div>
-
             <div className="flex gap-3 mt-8">
               <button onClick={() => setAddForm(blankForm)} className="admin-btn-ghost flex-1">Reset</button>
               <button onClick={handleAddQuestion} disabled={addLoading} className="admin-btn-primary flex-1 flex items-center justify-center gap-2">
-                {addLoading ? 'Saving...' : <><FiPlus size={15} /> Question Add Karo</>}
+                {addLoading ? 'Saving...' : <><FiPlus size={15} /> Add Question</>}
               </button>
             </div>
           </div>

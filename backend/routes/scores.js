@@ -4,15 +4,13 @@ import { protect, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Submit score (logged in user)
+// Submit score + mark terminated if cheating
 router.post('/submit', protect, async (req, res) => {
   try {
-    const { score, total } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $push: { scores: { score, total } } },
-      { new: true }
-    );
+    const { score, total, terminated } = req.body;
+    const update = { $push: { scores: { score, total } } };
+    if (terminated) update.$set = { quizTerminated: true };
+    const user = await User.findByIdAndUpdate(req.user.id, update, { new: true });
     res.json({ message: 'Score saved', scores: user.scores });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -44,6 +42,16 @@ router.delete('/user/:id', protect, adminOnly, async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: 'User deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Admin: reset user quiz so they can retake
+router.post('/reset/:id', protect, adminOnly, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.params.id, { $set: { quizTerminated: false } });
+    res.json({ message: 'Quiz reset successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
