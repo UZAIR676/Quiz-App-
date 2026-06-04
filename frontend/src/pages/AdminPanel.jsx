@@ -8,6 +8,8 @@ import {
   FiRefreshCw
 } from 'react-icons/fi';
 
+const API = 'https://quiz-app-production-b629.up.railway.app';
+
 // ─── Quiz Modal ───────────────────────────────────────────────────────────────
 function QuizModal({ quiz, onClose, onSave }) {
   const blank = { question: '', option1: '', option2: '', option3: '', option4: '', ans: 1 };
@@ -21,7 +23,7 @@ function QuizModal({ quiz, onClose, onSave }) {
     }
     setLoading(true);
     try {
-      await axios.put(`/api/quiz/${quiz._id}`, form);
+      await axios.put(`${API}/api/quiz/${quiz._id}`, form);
       onSave();
       onClose();
     } catch (err) {
@@ -120,7 +122,6 @@ function UserRow({ user, index, onDelete, onReset }) {
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="font-bold text-amber-100">{user.username}</span>
-            {/* ✅ Show terminated badge */}
             {user.quizTerminated && (
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
                 style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
@@ -150,7 +151,6 @@ function UserRow({ user, index, onDelete, onReset }) {
                 {expanded ? <FiChevronUp size={14} /> : <FiChevronDown size={14} />}
               </button>
             )}
-            {/* ✅ Reset button — only show if terminated */}
             {user.quizTerminated && (
               <button
                 onClick={handleReset}
@@ -232,7 +232,7 @@ export default function AdminPanel() {
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true);
-      const res = await axios.get('/api/scores/all');
+      const res = await axios.get(`${API}/api/scores/all`);
       setUsers(res.data);
     } catch (err) {
       console.error('Failed to fetch users:', err.response?.data?.message);
@@ -244,7 +244,7 @@ export default function AdminPanel() {
   const fetchQuizzes = async () => {
     try {
       setLoadingQuiz(true);
-      const res = await axios.get('/api/quiz');
+      const res = await axios.get(`${API}/api/quiz`);
       setQuizzes(res.data);
     } catch {
     } finally {
@@ -254,7 +254,7 @@ export default function AdminPanel() {
 
   const deleteUser = async (id) => {
     try {
-      await axios.delete(`/api/scores/user/${id}`);
+      await axios.delete(`${API}/api/scores/user/${id}`);
       setUsers(u => u.filter(x => x._id !== id));
       showMsg('User removed successfully');
     } catch {
@@ -263,10 +263,9 @@ export default function AdminPanel() {
     setDeleteConfirm(null);
   };
 
-  // ✅ Reset user quiz
   const resetUserQuiz = async (id) => {
     try {
-      await axios.post(`/api/scores/reset/${id}`);
+      await axios.post(`${API}/api/scores/reset/${id}`);
       setUsers(u => u.map(x => x._id === id ? { ...x, quizTerminated: false } : x));
       showMsg('Quiz reset successfully — user can retake now');
     } catch {
@@ -276,7 +275,7 @@ export default function AdminPanel() {
 
   const deleteQuiz = async (id) => {
     try {
-      await axios.delete(`/api/quiz/${id}`);
+      await axios.delete(`${API}/api/quiz/${id}`);
       setQuizzes(q => q.filter(x => x._id !== id));
       showMsg('Question deleted successfully');
     } catch {
@@ -294,7 +293,7 @@ export default function AdminPanel() {
     }
     setAddLoading(true);
     try {
-      await axios.post('/api/quiz', addForm);
+      await axios.post(`${API}/api/quiz`, addForm);
       setAddForm(blankForm);
       setAddMsg('Question added successfully! ✅');
       fetchQuizzes();
@@ -393,7 +392,6 @@ export default function AdminPanel() {
           ))}
         </div>
 
-        {/* ─── Users Tab ─── */}
         {tab === 'users' && (
           <div className="admin-card overflow-hidden">
             <div className="p-5 border-b border-amber-500/10 flex items-center justify-between">
@@ -432,7 +430,6 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* ─── Quiz Questions Tab ─── */}
         {tab === 'quiz' && (
           <div className="admin-card overflow-hidden">
             <div className="p-5 border-b border-amber-500/10 flex items-center justify-between">
@@ -497,7 +494,6 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* ─── Add Question Tab ─── */}
         {tab === 'add' && (
           <div className="admin-card p-8 max-w-2xl mx-auto">
             <div className="flex items-center gap-3 mb-6">

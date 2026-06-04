@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { FiCheckCircle, FiXCircle, FiArrowRight, FiAward } from 'react-icons/fi';
 
+const API = 'https://quiz-app-production-b629.up.railway.app';
+
 export default function Quiz() {
   const { user } = useAuth();
   const [questions, setQuestions] = useState([]);
@@ -27,8 +29,7 @@ export default function Quiz() {
     if (!user) return;
     try {
       setLoading(true);
-      // Check from backend if user is terminated
-      const res = await axios.get('/api/scores/my');
+      const res = await axios.get(`${API}/api/scores/my`);
       if (res.data.quizTerminated) {
         setAutoFailed(true);
         setLoading(false);
@@ -63,8 +64,7 @@ export default function Quiz() {
       if (newStrikes >= MAX_STRIKES) {
         setAutoFailed(true);
         if (!saved) {
-          // Send terminated: true so backend marks quizTerminated = true
-          axios.post('/api/scores/submit', {
+          axios.post(`${API}/api/scores/submit`, {
             score: 0,
             total: questions.length,
             terminated: true
@@ -78,7 +78,7 @@ export default function Quiz() {
   const fetchQuestions = async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/quiz');
+      const res = await axios.get(`${API}/api/quiz`);
       const shuffled = [...res.data].sort(() => Math.random() - 0.5);
       setQuestions(shuffled);
     } catch {
@@ -103,7 +103,7 @@ export default function Quiz() {
       setResult(true);
       if (!saved) {
         try {
-          await axios.post('/api/scores/submit', {
+          await axios.post(`${API}/api/scores/submit`, {
             score,
             total: questions.length,
             terminated: false
@@ -120,7 +120,6 @@ export default function Quiz() {
 
   const pct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
 
-  // ─── Loading ───────────────────────────────────────────────
   if (loading) return (
     <div className="ocean-bg grid-overlay min-h-screen flex items-center justify-center">
       <div className="text-center fade-in">
@@ -130,7 +129,6 @@ export default function Quiz() {
     </div>
   );
 
-  // ─── Error ─────────────────────────────────────────────────
   if (error) return (
     <div className="ocean-bg grid-overlay min-h-screen flex items-center justify-center">
       <div className="glass p-8 text-center max-w-md fade-in">
@@ -140,7 +138,6 @@ export default function Quiz() {
     </div>
   );
 
-  // ─── No Questions ──────────────────────────────────────────
   if (questions.length === 0 && !autoFailed) return (
     <div className="ocean-bg grid-overlay min-h-screen flex items-center justify-center">
       <div className="glass p-8 text-center max-w-md fade-in">
@@ -150,7 +147,6 @@ export default function Quiz() {
     </div>
   );
 
-  // ─── Auto Failed ───────────────────────────────────────────
   if (autoFailed) return (
     <div className="ocean-bg grid-overlay min-h-screen flex items-center justify-center px-4">
       <div className="glass p-10 text-center max-w-md w-full fade-in">
@@ -170,7 +166,6 @@ export default function Quiz() {
     </div>
   );
 
-  // ─── Result ────────────────────────────────────────────────
   if (result) return (
     <div className="ocean-bg grid-overlay min-h-screen flex items-center justify-center px-4">
       <div className="glass p-10 text-center max-w-md w-full fade-in">
@@ -203,14 +198,12 @@ export default function Quiz() {
     </div>
   );
 
-  // ─── Quiz ──────────────────────────────────────────────────
   const q = questions[index];
   const options = [q.option1, q.option2, q.option3, q.option4];
 
   return (
     <div className="ocean-bg grid-overlay min-h-screen py-10 px-4">
 
-      {/* Warning Overlay */}
       {cheating && !autoFailed && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="glass p-8 text-center max-w-sm mx-4 fade-in">
@@ -232,8 +225,6 @@ export default function Quiz() {
       )}
 
       <div className="max-w-2xl mx-auto fade-in">
-
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-sm font-bold text-white/40 tracking-widest" style={{ fontFamily: 'Orbitron' }}>
@@ -254,12 +245,10 @@ export default function Quiz() {
           </div>
         </div>
 
-        {/* Progress */}
         <div className="progress-bar mb-8">
           <div className="progress-fill" style={{ width: `${(index / questions.length) * 100}%` }}></div>
         </div>
 
-        {/* Question */}
         <div className="glass p-8 mb-6">
           <h3 className="text-xl font-bold text-white leading-relaxed mb-8">
             <span className="text-cyan-400/60 mr-2">Q{index + 1}.</span>
@@ -288,7 +277,6 @@ export default function Quiz() {
           </div>
         </div>
 
-        {/* Next Button */}
         <button
           onClick={handleNext}
           disabled={!locked}

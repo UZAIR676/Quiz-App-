@@ -16,7 +16,7 @@ export default function Login() {
     if (!form.email || !form.password) return setError('All fields required');
     setLoading(true);
     try {
-      const res = await axios.post('/api/auth/login', form);
+     const res = await axios.post('https://quiz-app-production-b629.up.railway.app/api/auth/login', form);
       login(res.data.user, res.data.token);
       // Admin ko seedha admin panel pe bhejo
       if (res.data.user.role === 'admin') {

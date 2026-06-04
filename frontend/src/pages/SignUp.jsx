@@ -19,7 +19,7 @@ export default function SignUp() {
     if (form.password.length < 6) return setError('Password must be at least 6 characters');
     setLoading(true);
     try {
-      const res = await axios.post('/api/auth/signup', {
+    const res = await axios.post('https://quiz-app-production-b629.up.railway.app/api/auth/signup', {
         username: form.username,
         email: form.email,
         password: form.password,
